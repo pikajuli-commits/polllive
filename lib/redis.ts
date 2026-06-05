@@ -1,20 +1,8 @@
-// ESM Redis client for Next.js API routes
-import Redis from 'ioredis'
+// Redis client — usa @upstash/redis (HTTP) en producción, ioredis (TCP) en local
+import { Redis as UpstashRedis } from '@upstash/redis'
+import IORedis from 'ioredis'
 
-let redis: Redis | null = null
-
-export function getRedis(): Redis {
-  if (!redis) {
-    const port = parseInt(process.env.REDIS_PORT || '6379')
-    redis = new Redis({
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port,
-      password: process.env.REDIS_PASSWORD || undefined,
-      tls: port === 6380 ? {} : undefined,
-    })
-  }
-  return redis
-}
+// ---- Tipos compartidos ----
 
 export type SlideType = 'poll' | 'wordcloud' | 'quiz' | 'qa'
 
@@ -27,12 +15,12 @@ export interface Slide {
   id: string
   type: SlideType
   question: string
-  options?: SlideOption[]  // For poll and quiz
+  options?: SlideOption[]
 }
 
 export interface Session {
-  id: string         // UUID
-  code: string       // 6-char code
+  id: string
+  code: string
   title: string
   slides: Slide[]
   currentSlide: number
@@ -47,21 +35,59 @@ export interface StoredResponse {
   ts: number
 }
 
+// ---- Cliente unificado ----
+
+const isUpstash = !!process.env.UPSTASH_REDIS_REST_URL
+
+let upstash: UpstashRedis | null = null
+let ioredis: IORedis | null = null
+
+function getUpstash(): UpstashRedis {
+  if (!upstash) {
+    upstash = new UpstashRedis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
+  }
+  return upstash
+}
+
+function getIORedis(): IORedis {
+  if (!ioredis) {
+    ioredis = new IORedis({
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
+    })
+  }
+  return ioredis
+}
+
+// ---- API pública ----
+
 export async function getSession(code: string): Promise<Session | null> {
-  const redis = getRedis()
-  const raw = await redis.get(`session:${code}`)
+  if (isUpstash) {
+    const data = await getUpstash().get<Session>(`session:${code}`)
+    return data ?? null
+  }
+  const raw = await getIORedis().get(`session:${code}`)
   if (!raw) return null
   return JSON.parse(raw) as Session
 }
 
 export async function saveSession(session: Session): Promise<void> {
-  const redis = getRedis()
-  await redis.set(`session:${session.code}`, JSON.stringify(session), 'EX', 86400)
+  if (isUpstash) {
+    await getUpstash().set(`session:${session.code}`, session, { ex: 86400 })
+    return
+  }
+  await getIORedis().set(`session:${session.code}`, JSON.stringify(session), 'EX', 86400)
 }
 
 export async function getResponses(sessionId: string, slideIndex: number): Promise<StoredResponse[]> {
-  const redis = getRedis()
   const key = `responses:${sessionId}:${slideIndex}`
-  const all = await redis.lrange(key, 0, -1)
+  if (isUpstash) {
+    const all = await getUpstash().lrange<StoredResponse>(key, 0, -1)
+    return all
+  }
+  const all = await getIORedis().lrange(key, 0, -1)
   return all.map(r => JSON.parse(r) as StoredResponse)
 }
