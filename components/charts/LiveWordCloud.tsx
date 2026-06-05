@@ -1,4 +1,5 @@
 'use client'
+import { useMemo } from 'react'
 import { StoredResponse } from '@/lib/redis'
 
 interface Props {
@@ -6,51 +7,92 @@ interface Props {
 }
 
 const COLORS = [
-  'text-indigo-400', 'text-violet-400', 'text-cyan-400',
-  'text-emerald-400', 'text-amber-400', 'text-pink-400',
-  'text-sky-400', 'text-rose-400',
+  '#818cf8', '#a78bfa', '#34d399', '#60a5fa',
+  '#f472b6', '#fb923c', '#38bdf8', '#facc15',
+  '#c084fc', '#4ade80',
 ]
 
-const SIZES = [
-  'text-3xl font-bold', 'text-2xl font-semibold', 'text-xl font-medium',
-  'text-lg', 'text-base', 'text-sm',
-]
+// Generador pseudo-random estable basado en una semilla (el texto)
+// Así las palabras no saltan de lugar en cada re-render
+function seededRandom(seed: string) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(31, h) + seed.charCodeAt(i) | 0
+  }
+  return () => {
+    h ^= h >>> 16
+    h = Math.imul(h, 0x45d9f3b)
+    h ^= h >>> 16
+    return (h >>> 0) / 0xffffffff
+  }
+}
 
 export default function LiveWordCloud({ responses }: Props) {
-  // Count word frequency
-  const freq: Record<string, number> = {}
-  responses.forEach(r => {
-    const words = r.answer.trim().toLowerCase().split(/\s+/).filter(w => w.length > 1)
-    words.forEach(w => { freq[w] = (freq[w] || 0) + 1 })
-  })
+  const words = useMemo(() => {
+    const freq: Record<string, number> = {}
+    responses.forEach(r => {
+      const ws = r.answer.trim().toLowerCase().split(/\s+/).filter(w => w.length > 1)
+      ws.forEach(w => { freq[w] = (freq[w] || 0) + 1 })
+    })
 
-  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 30)
-  const max = sorted[0]?.[1] || 1
+    const sorted = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 40)
 
-  if (sorted.length === 0) {
+    const max = sorted[0]?.[1] || 1
+
+    return sorted.map(([word, count]) => {
+      const rng = seededRandom(word)
+      const ratio = count / max
+
+      // Tamaño: entre 14px y 52px según frecuencia
+      const fontSize = Math.round(14 + ratio * 38)
+
+      // Posición: distribuida en toda el área con algo de margen
+      const left = 5 + rng() * 85   // 5% a 90%
+      const top  = 5 + rng() * 85   // 5% a 90%
+
+      // Rotación: -35° a +35°, con sesgo a horizontal para legibilidad
+      const rotations = [-35, -25, -15, 0, 0, 0, 15, 25, 35]
+      const rotate = rotations[Math.floor(rng() * rotations.length)]
+
+      const color = COLORS[Math.floor(rng() * COLORS.length)]
+
+      return { word, count, fontSize, left, top, rotate, color }
+    })
+  }, [responses])
+
+  if (words.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-slate-500 text-lg">
-        Esperando respuestas...
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-500">
+        <span className="text-4xl">☁️</span>
+        <p className="text-lg">Esperando respuestas...</p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-wrap gap-3 justify-center items-center p-6 min-h-48">
-      {sorted.map(([word, count], i) => {
-        const sizeIndex = Math.min(SIZES.length - 1, Math.floor((1 - count / max) * SIZES.length))
-        const color = COLORS[i % COLORS.length]
-        return (
-          <span
-            key={word}
-            className={`${SIZES[sizeIndex]} ${color} transition-all duration-500 cursor-default select-none`}
-            title={`${count} veces`}
-          >
-            {word}
-          </span>
-        )
-      })}
-      <p className="w-full text-center text-slate-400 text-sm mt-4">
+    <div className="relative w-full" style={{ height: '380px' }}>
+      {words.map(({ word, count, fontSize, left, top, rotate, color }) => (
+        <span
+          key={word}
+          className="absolute select-none cursor-default transition-all duration-700 ease-out font-semibold"
+          style={{
+            fontSize: `${fontSize}px`,
+            left: `${left}%`,
+            top: `${top}%`,
+            transform: `rotate(${rotate}deg)`,
+            color,
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
+            textShadow: `0 0 20px ${color}40`,
+          }}
+          title={`${count} vez${count !== 1 ? 'es' : ''}`}
+        >
+          {word}
+        </span>
+      ))}
+      <p className="absolute bottom-0 right-0 text-slate-500 text-xs pr-1">
         {responses.length} respuesta{responses.length !== 1 ? 's' : ''}
       </p>
     </div>
