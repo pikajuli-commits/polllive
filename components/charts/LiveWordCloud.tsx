@@ -13,8 +13,8 @@ const COLORS = [
   '#f26110', '#bb9915',
 ]
 
-// Generador pseudo-random estable basado en una semilla (el texto)
-// Así las palabras no saltan de lugar en cada re-render
+// Generador pseudo-random estable basado en semilla de texto.
+// Mismo seed → misma posición en cada re-render (sin saltos).
 function seededRandom(seed: string) {
   let h = 0
   for (let i = 0; i < seed.length; i++) {
@@ -49,13 +49,20 @@ export default function LiveWordCloud({ responses }: Props) {
       // Tamaño: entre 14px y 52px según frecuencia
       const fontSize = Math.round(14 + ratio * 38)
 
-      // Posición: distribuida en toda el área con algo de margen
-      const left = 5 + rng() * 85   // 5% a 90%
-      const top  = 5 + rng() * 85   // 5% a 90%
+      // ── LAYOUT TIPO TABLEAU — gravedad hacia el centro ──
+      // Palabras más frecuentes (ratio → 1) tienen spread pequeño → quedan cerca del centro.
+      // Palabras raras (ratio → 0) tienen spread grande → pueden llegar a los bordes.
+      // Horizontal: rango ±spread alrededor del 50%.
+      // Vertical: rango ±spread*0.65 alrededor del 45% (ovalo ancho y ligeramente alto).
+      const spread = 4 + (1 - ratio) * 40   // 4% (frecuente) → 44% (raro)
+      const rawLeft = 50 + (rng() * 2 - 1) * spread
+      const rawTop  = 45 + (rng() * 2 - 1) * (spread * 0.65)
+      const left = Math.max(3, Math.min(88, rawLeft))
+      const top  = Math.max(3, Math.min(88, rawTop))
 
-      // Rotación: -35° a +35°, con sesgo a horizontal para legibilidad
-      const rotations = [-35, -25, -15, 0, 0, 0, 15, 25, 35]
-      const rotate = rotations[Math.floor(rng() * rotations.length)]
+      // Rotación: más leve para palabras grandes (más legibles), más variada para pequeñas
+      const maxRotate = 10 + (1 - ratio) * 30   // ±10° (frecuente) → ±40° (raro)
+      const rotate = Math.round((rng() * 2 - 1) * maxRotate)
 
       const color = COLORS[Math.floor(rng() * COLORS.length)]
 
@@ -65,9 +72,9 @@ export default function LiveWordCloud({ responses }: Props) {
 
   if (words.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-500">
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
         <span className="text-4xl">☁️</span>
-        <p className="text-lg">Esperando respuestas...</p>
+        <p className="text-[#535862] text-[16px] font-medium">Esperando respuestas...</p>
       </div>
     )
   }
@@ -93,7 +100,7 @@ export default function LiveWordCloud({ responses }: Props) {
           {word}
         </span>
       ))}
-      <p className="absolute bottom-0 right-0 text-slate-500 text-xs pr-1">
+      <p className="absolute bottom-0 right-0 text-[#93979f] text-[12px] font-medium pr-1">
         {responses.length} respuesta{responses.length !== 1 ? 's' : ''}
       </p>
     </div>

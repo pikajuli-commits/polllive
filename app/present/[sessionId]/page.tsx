@@ -31,6 +31,7 @@ export default function PresentPage() {
   const [audienceCount, setAudienceCount] = useState(0)
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [showQR, setShowQR] = useState(true)
+  const [copied, setCopied] = useState(false)
   const socketRef = useRef(getSocket())
 
   useEffect(() => {
@@ -54,7 +55,8 @@ export default function PresentPage() {
 
   useEffect(() => {
     const socket = socketRef.current
-    socket.emit('presenter:join', { sessionId })
+    // Pass code so server can populate sessionCodeMap and use correct Redis key
+    socket.emit('presenter:join', { sessionId, code })
     socket.on('responses:update', ({ slideIndex, responses: r }: { slideIndex: number; responses: StoredResponse[] }) => {
       if (slideIndex === currentSlide) setResponses(r)
     })
@@ -65,20 +67,30 @@ export default function PresentPage() {
       socket.off('audience:count')
       socket.off('responses:lock')
     }
-  }, [sessionId, currentSlide])
+  }, [sessionId, code, currentSlide])
 
   const goToSlide = useCallback((idx: number) => {
     setCurrentSlide(idx)
     setResponses([])
     setLocked(false)
-    socketRef.current.emit('presenter:slide', { sessionId, slideIndex: idx })
-  }, [sessionId])
+    // Pass code so server uses correct Redis key (keyed by code, not UUID)
+    socketRef.current.emit('presenter:slide', { sessionId, code, slideIndex: idx })
+  }, [sessionId, code])
 
   const toggleLock = useCallback(() => {
     const next = !locked
     setLocked(next)
-    socketRef.current.emit('presenter:lock', { sessionId, locked: next })
-  }, [locked, sessionId])
+    // Pass code for same reason as above
+    socketRef.current.emit('presenter:lock', { sessionId, code, locked: next })
+  }, [locked, sessionId, code])
+
+  const handleCopyViewerLink = useCallback(() => {
+    const url = `${window.location.origin}/view/${sessionId}?code=${code}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [sessionId, code])
 
   const joinUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/join/${code}`
 
@@ -109,11 +121,21 @@ export default function PresentPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9999px] bg-[#d3f6e3] border border-[#535862]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
             <span className="text-[13px] font-medium text-[#0a0d12]">{audienceCount} en vivo</span>
           </div>
+          <button
+            onClick={handleCopyViewerLink}
+            className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${
+              copied
+                ? 'bg-[#d3f6e3] border-[#10b981] text-[#0a0d12]'
+                : 'border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12]'
+            }`}
+          >
+            {copied ? '✓ Copiado' : '🔗 Compartir vista'}
+          </button>
           <button
             onClick={() => setShowQR(v => !v)}
             className="px-4 py-1.5 rounded-[9999px] border border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12] text-[13px] font-medium transition-all duration-200"
