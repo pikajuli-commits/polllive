@@ -5,9 +5,12 @@ let redis: Redis | null = null
 
 export function getRedis(): Redis {
   if (!redis) {
+    const port = parseInt(process.env.REDIS_PORT || '6379')
     redis = new Redis({
       host: process.env.REDIS_HOST || '127.0.0.1',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      port,
+      password: process.env.REDIS_PASSWORD || undefined,
+      tls: port === 6380 ? {} : undefined,
     })
   }
   return redis
