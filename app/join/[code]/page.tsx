@@ -146,18 +146,18 @@ export default function JoinPage() {
           {/* Question */}
           <h2 className="text-2xl font-bold text-white leading-snug">{slide.question}</h2>
 
-          {/* Slide component */}
+          {/* Slide component — key={slideIndex} fuerza remount al cambiar slide */}
           {slide.type === 'poll' && (
-            <PollSlide slide={slide} locked={locked} onAnswer={handleAnswer} />
+            <PollSlide key={slideIndex} slide={slide} locked={locked} onAnswer={handleAnswer} />
           )}
           {slide.type === 'wordcloud' && (
-            <WordCloudSlide locked={locked} onAnswer={handleAnswer} />
+            <WordCloudSlide key={slideIndex} locked={locked} onAnswer={handleAnswer} />
           )}
           {slide.type === 'quiz' && (
-            <QuizSlide slide={slide} locked={locked} onAnswer={handleAnswer} />
+            <QuizSlide key={slideIndex} slide={slide} locked={locked} onAnswer={handleAnswer} />
           )}
           {slide.type === 'qa' && (
-            <QASlide locked={locked} onAnswer={handleAnswer} />
+            <QASlide key={slideIndex} locked={locked} onAnswer={handleAnswer} />
           )}
         </div>
       </div>
