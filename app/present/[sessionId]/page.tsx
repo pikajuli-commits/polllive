@@ -105,6 +105,11 @@ export default function PresentPage() {
   const slide = session.slides[currentSlide]
   const badge = SLIDE_BADGE[slide.type]
 
+  // Background darkening: results card subtly tints as more responses come in.
+  // At 0 responses: #fafdff (Paper White). At 35+: ~6% darker. Max imperceptible shift.
+  const _d = Math.min(responses.length / 35, 1) * 0.06
+  const cardBg = `rgb(${Math.round(250*(1-_d)+10*_d)},${Math.round(253*(1-_d)+13*_d)},${Math.round(255*(1-_d)+18*_d)})`
+
   return (
     <div className="min-h-screen bg-[#ebf5ff] flex flex-col">
 
@@ -173,7 +178,7 @@ export default function PresentPage() {
           </div>
 
           {/* Results */}
-          <div className="flex-1 bg-[#fafdff] rounded-[32px] border border-[#535862] p-6 shadow-[rgba(4,69,144,0.08)_0px_14px_20px_4px]">
+          <div className="flex-1 rounded-[32px] border border-[#535862] p-6 shadow-[rgba(4,69,144,0.08)_0px_14px_20px_4px]" style={{ backgroundColor: cardBg, transition: 'background-color 0.6s ease' }}>
             {responses.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3">
                 <div className="w-14 h-14 rounded-[16px] bg-[#cce7ff] flex items-center justify-center text-2xl">⏳</div>

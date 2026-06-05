@@ -6,33 +6,31 @@ interface Props {
   responses: StoredResponse[]
 }
 
-// Geniestudio accent palette
 const COLORS = ['#4fbeff', '#9552e0', '#f26110', '#bb9915', '#0099ff', '#0069e0']
 
-// Virtual canvas — cálculo de posiciones en este espacio, luego se mapea al contenedor real
-const VW = 680
-const VH = 360
+// ── Singleton canvas for exact text measurement (module scope, not inside component) ──
+// typeof window guard is required: this module runs on the server during Next.js build.
+// On the server _measureCanvas = null → fallback to approximate charW.
+const _measureCanvas =
+  typeof window !== 'undefined' ? document.createElement('canvas') : null
 
-// Ancho aproximado de un carácter según el tamaño de fuente (sans-serif)
-function charW(fontSize: number) {
-  return fontSize * 0.58
+function measureWord(word: string, fontSize: number): number {
+  if (!_measureCanvas) return word.length * fontSize * 0.58
+  const ctx = _measureCanvas.getContext('2d')!
+  ctx.font = `bold ${fontSize}px sans-serif`
+  return ctx.measureText(word).width + 4   // +4 for subtle letter-spacing buffer
 }
 
-// Bounding box de una palabra en una posición dada
-function bbox(word: string, fontSize: number, x: number, y: number) {
-  return {
-    x, y,
-    w: word.length * charW(fontSize) + 6,
-    h: fontSize * 1.35,
-  }
+// Deterministic color per word — same word always gets same color across re-renders
+function wordColor(word: string): string {
+  let h = 0
+  for (let i = 0; i < word.length; i++) h = Math.imul(31, h) + word.charCodeAt(i) | 0
+  return COLORS[Math.abs(h) % COLORS.length]
 }
 
-// ¿Dos bounding boxes se solapan? `pad` = margen de aire entre palabras
-function overlaps(
-  a: { x: number; y: number; w: number; h: number },
-  b: { x: number; y: number; w: number; h: number },
-  pad = 7
-) {
+interface Box { x: number; y: number; w: number; h: number }
+
+function intersects(a: Box, b: Box, pad = 8): boolean {
   return !(
     a.x + a.w + pad < b.x ||
     b.x + b.w + pad < a.x ||
@@ -41,16 +39,15 @@ function overlaps(
   )
 }
 
-// Color determinista por palabra (no aleatorio — siempre el mismo color para la misma palabra)
-function wordColor(word: string) {
-  let h = 0
-  for (let i = 0; i < word.length; i++) h = Math.imul(31, h) + word.charCodeAt(i) | 0
-  return COLORS[Math.abs(h) % COLORS.length]
-}
+// ── Half-dimensions of the visible card area (origin = center of card) ──
+// Presenter card is ~700–900px wide and 360px tall.
+// Using conservative halves so words stay comfortably inside the card padding.
+const HALF_W = 310
+const HALF_H = 160
 
 export default function LiveWordCloud({ responses }: Props) {
   const placed = useMemo(() => {
-    // ── 1. Contar frecuencias ──
+    // ── 1. Count word frequencies ──────────────────────────────────────────
     const freq: Record<string, number> = {}
     responses.forEach(r => {
       r.answer.trim().toLowerCase()
@@ -64,81 +61,82 @@ export default function LiveWordCloud({ responses }: Props) {
       .slice(0, 40)
 
     if (sorted.length === 0) return []
-
     const max = sorted[0][1]
-    const cx = VW / 2
-    const cy = VH / 2
 
     const result: Array<{ word: string; fontSize: number; color: string; x: number; y: number }> = []
-    const placed: ReturnType<typeof bbox>[] = []
+    const boxes: Box[] = []
 
-    // ── 2. Colocar cada palabra con espiral de Arquímedes ──
-    // La más frecuente parte exactamente del centro; las demás espiralan hacia afuera
-    // hasta encontrar un espacio libre.
+    // ── 2. Archimedean spiral placement — all coordinates relative to (0,0) ──
+    // Architecture matches d3-cloud:
+    //   • (0,0) = center of the visible area
+    //   • x, y = top-left corner of each word
+    //   • A single CSS `top:50% left:50%` parent div maps (0,0) to the card center
+    //   • No virtual canvas width needed — works at any container size
     for (const [word, count] of sorted) {
       const ratio = count / max
-      const fontSize = Math.round(15 + ratio * 37)  // 15px → 52px
+      const fontSize = Math.round(15 + ratio * 37)   // 15px (rare) → 52px (most frequent)
+      const wordW = measureWord(word, fontSize)
+      const wordH = fontSize * 1.35
       const color = wordColor(word)
-      const ww = word.length * charW(fontSize) + 6
-      const wh = fontSize * 1.35
 
-      let foundX = 0
-      let foundY = 0
+      // Start angle seeded per word so words radiate in different directions,
+      // preventing all words from clustering on one side of the spiral
+      let seedAngle = 0
+      for (let i = 0; i < word.length; i++) seedAngle += word.charCodeAt(i)
+      const startAngle = (seedAngle % 628) / 100   // maps to [0, 2π)
+
+      const STEP = 0.085        // angle increment per iteration
+      const SPREAD = 3.2        // radius growth per radian (higher = looser spiral)
+      const V_SQUEEZE = 0.55    // vertical compression → elliptical cloud (wider than tall)
+      const MAX_T = 600         // max iterations before giving up
+
       let found = false
 
-      // Espiral: ángulo inicial variado por palabra para que no todas salgan en la misma dirección
-      let startAngle = 0
-      for (let i = 0; i < word.length; i++) startAngle += word.charCodeAt(i)
-      startAngle = (startAngle % 628) / 100  // 0 – 2π
-
-      const maxAngle = 500   // tope de iteraciones
-      const step = 0.09      // ángulo por paso (más pequeño = espiral más densa)
-      const spread = 2.6     // cuánto crece el radio por radián
-      const verticalSqueeze = 0.58  // hace el óvalo más ancho que alto (natural en texto)
-
-      for (let t = 0; t < maxAngle; t += step) {
+      for (let t = 0; t < MAX_T; t += STEP) {
         const angle = startAngle + t
-        const r = spread * t
-        const tx = cx + r * Math.cos(angle) - ww / 2
-        const ty = cy + r * Math.sin(angle) * verticalSqueeze - wh / 2
+        const r = SPREAD * t
+        const spiralX = r * Math.cos(angle)               // word center X in origin coords
+        const spiralY = r * Math.sin(angle) * V_SQUEEZE   // word center Y (ellipse)
 
-        // Mantener dentro del canvas virtual
-        if (tx < 4 || ty < 4 || tx + ww > VW - 4 || ty + wh > VH - 4) continue
+        // Convert center to top-left (what CSS left/top receive)
+        const tx = spiralX - wordW / 2
+        const ty = spiralY - wordH / 2
 
-        const candidate = bbox(word, fontSize, tx, ty)
-        if (!placed.some(b => overlaps(candidate, b))) {
-          foundX = tx
-          foundY = ty
-          placed.push(candidate)
+        // Bounds: word must fit within the card half-dimensions
+        if (tx < -HALF_W || tx + wordW > HALF_W || ty < -HALF_H || ty + wordH > HALF_H) continue
+
+        const candidate: Box = { x: tx, y: ty, w: wordW, h: wordH }
+
+        if (!boxes.some(b => intersects(candidate, b))) {
+          result.push({ word, fontSize, color, x: tx, y: ty })
+          boxes.push(candidate)
           found = true
           break
         }
       }
 
-      // Fallback: si la espiral no encontró lugar, barrer posiciones en cuadrícula
+      // Fallback: grid scan across the half-bounds if spiral exhausted
       if (!found) {
-        outer: for (let row = 0; row < VH; row += Math.max(wh + 8, 20)) {
-          for (let col = 0; col < VW; col += Math.max(ww + 8, 20)) {
-            const candidate = bbox(word, fontSize, col, row)
-            if (col + ww <= VW - 4 && row + wh <= VH - 4 && !placed.some(b => overlaps(candidate, b))) {
-              foundX = col
-              foundY = row
-              placed.push(candidate)
-              found = true
+        const colStep = Math.max(wordW + 12, 30)
+        const rowStep = Math.max(wordH + 10, 20)
+        outer:
+        for (let gy = -HALF_H; gy + wordH <= HALF_H; gy += rowStep) {
+          for (let gx = -HALF_W; gx + wordW <= HALF_W; gx += colStep) {
+            const candidate: Box = { x: gx, y: gy, w: wordW, h: wordH }
+            if (!boxes.some(b => intersects(candidate, b))) {
+              result.push({ word, fontSize, color, x: gx, y: gy })
+              boxes.push(candidate)
               break outer
             }
           }
         }
-      }
-
-      if (found) {
-        result.push({ word, fontSize, color, x: foundX, y: foundY })
       }
     }
 
     return result
   }, [responses])
 
+  // ── Empty state ────────────────────────────────────────────────────────────
   if (placed.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -148,32 +146,42 @@ export default function LiveWordCloud({ responses }: Props) {
     )
   }
 
-  // Escalar el canvas virtual al contenedor real manteniendo proporciones
-  // El contenedor tiene width: 100% y height: VH px — se usa el canvas 1:1 en escritorio.
   return (
-    <div
-      className="relative w-full overflow-hidden"
-      style={{ height: `${VH}px` }}
-    >
-      {placed.map(({ word, fontSize, color, x, y }) => (
-        <span
-          key={word}
-          className="absolute select-none cursor-default font-semibold transition-all duration-500 ease-out"
-          style={{
-            fontSize: `${fontSize}px`,
-            left: `${x}px`,
-            top: `${y}px`,
-            color,
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
-          }}
-          title={`${responses.filter(r =>
-            r.answer.trim().toLowerCase().split(/\s+/).includes(word)
-          ).length} mención${responses.length !== 1 ? 'es' : ''}`}
-        >
-          {word}
-        </span>
-      ))}
+    <div className="relative w-full overflow-hidden" style={{ height: '360px' }}>
+      {/*
+        Origin anchor — the d3-cloud centering pattern in pure CSS:
+        top:50% left:50% maps pixel (0,0) to the visual center of the container.
+        width:0 height:0 overflow:visible lets words extend in all directions from center.
+        Result: cloud is ALWAYS centered regardless of the container's actual width.
+      */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          width: 0,
+          height: 0,
+          overflow: 'visible',
+        }}
+      >
+        {placed.map(({ word, x, y, fontSize, color }) => (
+          <span
+            key={word}
+            className="select-none cursor-default font-semibold transition-all duration-500 ease-out"
+            style={{
+              position: 'absolute',
+              left: x,
+              top: y,
+              fontSize,
+              color,
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {word}
+          </span>
+        ))}
+      </div>
       <p className="absolute bottom-1 right-2 text-[#93979f] text-[11px] font-medium">
         {responses.length} respuesta{responses.length !== 1 ? 's' : ''}
       </p>
