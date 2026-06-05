@@ -4,11 +4,11 @@ import { useRouter } from 'next/navigation'
 import { v4 as uuidv4 } from 'uuid'
 import { Slide, SlideType, SlideOption } from '@/lib/redis'
 
-const SLIDE_TYPES: { value: SlideType; label: string; icon: string; desc: string }[] = [
-  { value: 'poll', label: 'Votación', icon: '📊', desc: 'Múltiple opción con resultados en barra' },
-  { value: 'wordcloud', label: 'Nube de palabras', icon: '☁️', desc: 'Respuesta libre, visualización en nube' },
-  { value: 'quiz', label: 'Quiz', icon: '🏆', desc: 'Pregunta con opción correcta' },
-  { value: 'qa', label: 'Q&A', icon: '💬', desc: 'La audiencia hace preguntas abiertas' },
+const SLIDE_TYPES: { value: SlideType; label: string; icon: string; bg: string }[] = [
+  { value: 'poll',      label: 'Votación',         icon: '📊', bg: '#cce7ff' },
+  { value: 'wordcloud', label: 'Nube de palabras',  icon: '☁️', bg: '#f1e6ff' },
+  { value: 'quiz',      label: 'Quiz',              icon: '🏆', bg: '#d3f6e3' },
+  { value: 'qa',        label: 'Q&A',               icon: '💬', bg: '#fff2be' },
 ]
 
 function newOption(): SlideOption {
@@ -30,39 +30,22 @@ export default function CreatePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const addSlide = (type: SlideType) => {
-    setSlides(prev => [...prev, newSlide(type)])
-  }
-
-  const removeSlide = (idx: number) => {
-    setSlides(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  const updateSlide = (idx: number, patch: Partial<Slide>) => {
+  const addSlide = (type: SlideType) => setSlides(prev => [...prev, newSlide(type)])
+  const removeSlide = (idx: number) => setSlides(prev => prev.filter((_, i) => i !== idx))
+  const updateSlide = (idx: number, patch: Partial<Slide>) =>
     setSlides(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s))
-  }
-
-  const addOption = (slideIdx: number) => {
-    setSlides(prev => prev.map((s, i) => {
-      if (i !== slideIdx) return s
-      return { ...s, options: [...(s.options || []), newOption()] }
-    }))
-  }
-
-  const updateOption = (slideIdx: number, optIdx: number, text: string) => {
+  const addOption = (slideIdx: number) =>
+    setSlides(prev => prev.map((s, i) => i !== slideIdx ? s : { ...s, options: [...(s.options || []), newOption()] }))
+  const updateOption = (slideIdx: number, optIdx: number, text: string) =>
     setSlides(prev => prev.map((s, i) => {
       if (i !== slideIdx || !s.options) return s
-      const opts = s.options.map((o, j) => j === optIdx ? { ...o, text } : o)
-      return { ...s, options: opts }
+      return { ...s, options: s.options.map((o, j) => j === optIdx ? { ...o, text } : o) }
     }))
-  }
-
-  const removeOption = (slideIdx: number, optIdx: number) => {
+  const removeOption = (slideIdx: number, optIdx: number) =>
     setSlides(prev => prev.map((s, i) => {
       if (i !== slideIdx || !s.options) return s
       return { ...s, options: s.options.filter((_, j) => j !== optIdx) }
     }))
-  }
 
   const handleCreate = async () => {
     if (!title.trim()) { setError('Agrega un título a la sesión'); return }
@@ -70,7 +53,6 @@ export default function CreatePage() {
     if (slides.some(s => (s.type === 'poll' || s.type === 'quiz') && (s.options?.some(o => !o.text.trim()) || (s.options?.length ?? 0) < 2))) {
       setError('Las votaciones y quizzes necesitan al menos 2 opciones completas'); return
     }
-
     setLoading(true)
     setError('')
     try {
@@ -89,40 +71,61 @@ export default function CreatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-[#ebf5ff]">
       <div className="max-w-3xl mx-auto px-4 py-10">
+
         {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-white mb-1">Nueva sesión</h1>
-          <p className="text-slate-400">Crea tus slides y comparte el código QR con tu audiencia</p>
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-7 h-7 rounded-[8px] bg-[#181d27] flex items-center justify-center">
+              <span className="text-white text-xs font-semibold">P</span>
+            </div>
+            <span className="text-[#0a0d12] text-[16px] font-medium tracking-[-0.01em]">PollLive</span>
+          </div>
+          <h1 className="text-[32px] font-medium leading-[1.2] tracking-[-0.64px] text-[#0a0d12] mb-1">
+            Nueva sesión
+          </h1>
+          <p className="text-[#535862] text-[16px] font-medium tracking-[-0.01em]">
+            Crea tus slides y comparte el código QR con tu audiencia
+          </p>
         </div>
 
         {/* Session title */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Título de la sesión</label>
+        <div className="mb-6">
+          <label className="block text-[14px] font-medium text-[#535862] mb-2 tracking-[-0.01em]">
+            Título de la sesión
+          </label>
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Ej: Clase de economía — Semana 3"
-            className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 focus:border-indigo-500 text-white text-lg outline-none transition-colors"
+            className="w-full px-4 py-3 rounded-[16px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[16px] font-medium placeholder:text-[#93979f] tracking-[-0.01em] transition-all duration-200"
           />
         </div>
 
         {/* Slides */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {slides.map((slide, idx) => {
             const meta = SLIDE_TYPES.find(t => t.value === slide.type)!
             return (
-              <div key={slide.id} className="bg-slate-900 border border-slate-700 rounded-2xl p-6">
+              <div
+                key={slide.id}
+                className="bg-[#fafdff] border border-[#535862] rounded-[32px] p-6 shadow-[rgba(4,69,144,0.08)_0px_14px_20px_4px]"
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{meta.icon}</span>
-                    <span className="text-slate-300 font-medium">Slide {idx + 1} — {meta.label}</span>
+                    <span
+                      className="px-3 py-1 rounded-[9999px] text-[12px] font-medium text-[#0a0d12]"
+                      style={{ backgroundColor: meta.bg }}
+                    >
+                      {meta.icon} {meta.label}
+                    </span>
+                    <span className="text-[#93979f] text-[12px] font-medium">Slide {idx + 1}</span>
                   </div>
                   {slides.length > 1 && (
                     <button
                       onClick={() => removeSlide(idx)}
-                      className="text-slate-500 hover:text-red-400 transition-colors text-sm"
+                      className="text-[#93979f] hover:text-[#f26110] text-[13px] font-medium transition-colors duration-200"
                     >
                       Eliminar
                     </button>
@@ -133,24 +136,24 @@ export default function CreatePage() {
                   value={slide.question}
                   onChange={e => updateSlide(idx, { question: e.target.value })}
                   placeholder="Escribe la pregunta..."
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-700 focus:border-indigo-500 text-white outline-none transition-colors mb-4"
+                  className="w-full px-4 py-3 rounded-[16px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[16px] font-medium placeholder:text-[#93979f] tracking-[-0.01em] transition-all duration-200 mb-4"
                 />
 
                 {(slide.type === 'poll' || slide.type === 'quiz') && (
                   <div className="space-y-2">
                     {slide.options?.map((opt, oi) => (
                       <div key={opt.id} className="flex items-center gap-2">
-                        <span className="text-slate-500 text-sm w-6 shrink-0">{oi + 1}.</span>
+                        <span className="text-[#93979f] text-[13px] w-5 shrink-0 font-medium">{oi + 1}.</span>
                         <input
                           value={opt.text}
                           onChange={e => updateOption(idx, oi, e.target.value)}
                           placeholder={`Opción ${oi + 1}`}
-                          className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 focus:border-indigo-500 text-white outline-none transition-colors"
+                          className="flex-1 px-3 py-2 rounded-[8px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[14px] font-medium placeholder:text-[#93979f] transition-all duration-200"
                         />
                         {(slide.options?.length ?? 0) > 2 && (
                           <button
                             onClick={() => removeOption(idx, oi)}
-                            className="text-slate-600 hover:text-red-400 transition-colors"
+                            className="text-[#93979f] hover:text-[#f26110] transition-colors duration-200 text-sm"
                           >
                             ✕
                           </button>
@@ -160,7 +163,7 @@ export default function CreatePage() {
                     {(slide.options?.length ?? 0) < 6 && (
                       <button
                         onClick={() => addOption(idx)}
-                        className="text-indigo-400 hover:text-indigo-300 text-sm mt-1 transition-colors"
+                        className="text-[#0099ff] hover:text-[#0069e0] text-[13px] font-medium mt-1 transition-colors duration-200"
                       >
                         + Agregar opción
                       </button>
@@ -172,18 +175,19 @@ export default function CreatePage() {
           })}
         </div>
 
-        {/* Add slide buttons */}
+        {/* Add slide */}
         <div className="mt-6">
-          <p className="text-slate-400 text-sm mb-3">Agregar slide:</p>
+          <p className="text-[#535862] text-[13px] font-medium mb-3 tracking-[-0.01em]">Agregar slide:</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {SLIDE_TYPES.map(t => (
               <button
                 key={t.value}
                 onClick={() => addSlide(t.value)}
-                className="flex flex-col items-center gap-1 px-3 py-3 rounded-xl border-2 border-dashed border-slate-700 hover:border-indigo-500 hover:bg-indigo-500/5 transition-all text-slate-400 hover:text-indigo-300"
+                style={{ backgroundColor: t.bg }}
+                className="flex flex-col items-center gap-1.5 px-3 py-4 rounded-[16px] border border-transparent hover:border-[#535862] transition-all duration-200 text-[#0a0d12]"
               >
                 <span className="text-2xl">{t.icon}</span>
-                <span className="text-xs font-medium">{t.label}</span>
+                <span className="text-[12px] font-medium tracking-[-0.01em]">{t.label}</span>
               </button>
             ))}
           </div>
@@ -191,19 +195,20 @@ export default function CreatePage() {
 
         {/* Error */}
         {error && (
-          <div className="mt-6 px-4 py-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300">
+          <div className="mt-5 px-4 py-3 rounded-[16px] bg-[#ffe4d4] border border-[#f26110] text-[#0a0d12] text-[14px] font-medium">
             {error}
           </div>
         )}
 
-        {/* Create */}
+        {/* CTA */}
         <button
           onClick={handleCreate}
           disabled={loading}
-          className="mt-8 w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white text-xl font-bold transition-all"
+          className="mt-6 w-full py-4 rounded-[9999px] bg-[#181d27] hover:opacity-90 disabled:bg-[#f6f7f8] disabled:text-[#93979f] text-white text-[16px] font-medium tracking-[-0.01em] transition-all duration-200 shadow-[rgba(10,13,18,0.8)_0px_1px_2px_0px,rgb(10,13,18)_0px_0px_0px_1px]"
         >
           {loading ? 'Creando sesión...' : 'Crear sesión y presentar →'}
         </button>
+
       </div>
     </div>
   )

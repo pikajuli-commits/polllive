@@ -6,10 +6,11 @@ interface Props {
   responses: StoredResponse[]
 }
 
+// Geniestudio accent palette
 const COLORS = [
-  '#818cf8', '#a78bfa', '#34d399', '#60a5fa',
-  '#f472b6', '#fb923c', '#38bdf8', '#facc15',
-  '#c084fc', '#4ade80',
+  '#4fbeff', '#9552e0', '#f26110', '#bb9915',
+  '#0099ff', '#0069e0', '#4fbeff', '#9552e0',
+  '#f26110', '#bb9915',
 ]
 
 // Generador pseudo-random estable basado en una semilla (el texto)

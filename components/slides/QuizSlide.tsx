@@ -9,13 +9,14 @@ interface Props {
 }
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
-const LETTER_COLORS = [
-  'bg-indigo-600 border-indigo-500',
-  'bg-violet-600 border-violet-500',
-  'bg-cyan-600 border-cyan-500',
-  'bg-emerald-600 border-emerald-500',
-  'bg-amber-600 border-amber-500',
-  'bg-rose-600 border-rose-500',
+// Geniestudio tinted chip backgrounds per letter
+const CHIP_STYLES = [
+  { bg: '#cce7ff', dot: '#4fbeff' }, // Morning Tint + Cornflower
+  { bg: '#f1e6ff', dot: '#9552e0' }, // Lilac Mist + Amethyst
+  { bg: '#d3f6e3', dot: '#10b981' }, // Sprout + green
+  { bg: '#fff2be', dot: '#bb9915' }, // Buttery + Mustard
+  { bg: '#ffe4d4', dot: '#f26110' }, // Sunset + Tangerine
+  { bg: '#fafdff', dot: '#535862' }, // fallback
 ]
 
 export default function QuizSlide({ slide, locked, onAnswer }: Props) {
@@ -32,30 +33,38 @@ export default function QuizSlide({ slide, locked, onAnswer }: Props) {
   return (
     <div className="flex flex-col gap-3">
       {locked && (
-        <div className="bg-amber-500/20 border border-amber-500/40 rounded-lg px-4 py-2 text-amber-300 text-sm text-center">
+        <div className="bg-[#fff2be] border border-[#bb9915] rounded-[8px] px-4 py-2 text-[#535862] text-[14px] text-center font-medium">
           Las respuestas están cerradas
         </div>
       )}
-      {slide.options?.map((opt, i) => (
-        <button
-          key={opt.id}
-          onClick={() => handleSubmit(opt.id)}
-          disabled={submitted || locked}
-          className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl border-2 text-white font-medium text-lg transition-all
-            ${submitted && selected === opt.id ? 'border-white scale-95' : ''}
-            ${submitted && selected !== opt.id ? 'opacity-40' : ''}
-            ${!submitted && !locked ? 'hover:scale-[1.02] cursor-pointer' : ''}
-            ${LETTER_COLORS[i % LETTER_COLORS.length]}
-          `}
-        >
-          <span className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold shrink-0">
-            {LETTERS[i]}
-          </span>
-          {opt.text}
-        </button>
-      ))}
+      {slide.options?.map((opt, i) => {
+        const style = CHIP_STYLES[i % CHIP_STYLES.length]
+        const isSelected = submitted && selected === opt.id
+        const isDimmed = submitted && selected !== opt.id
+        return (
+          <button
+            key={opt.id}
+            onClick={() => handleSubmit(opt.id)}
+            disabled={submitted || locked}
+            style={{ backgroundColor: style.bg }}
+            className={`w-full flex items-center gap-3 px-4 py-4 rounded-[16px] border text-[#0a0d12] font-medium text-[16px] tracking-[-0.01em] transition-all duration-200
+              ${isSelected ? 'border-[#0a0d12] border-2 shadow-[rgba(10,13,18,0.08)_0px_4px_12px]' : 'border-transparent'}
+              ${isDimmed ? 'opacity-30' : ''}
+              ${!submitted && !locked ? 'hover:scale-[1.01] hover:border-[#535862] cursor-pointer' : ''}
+            `}
+          >
+            <span
+              className="w-7 h-7 rounded-[8px] flex items-center justify-center text-[12px] font-semibold shrink-0 text-white"
+              style={{ backgroundColor: style.dot }}
+            >
+              {LETTERS[i]}
+            </span>
+            {opt.text}
+          </button>
+        )
+      })}
       {submitted && (
-        <p className="text-center text-slate-400 mt-2">Esperando que termine el tiempo...</p>
+        <p className="text-center text-[#535862] text-[14px] mt-1">Esperando al presentador...</p>
       )}
     </div>
   )

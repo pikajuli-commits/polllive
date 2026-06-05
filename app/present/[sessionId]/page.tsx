@@ -12,6 +12,13 @@ interface SessionData {
   slides: Slide[]
 }
 
+const SLIDE_BADGE: Record<string, { label: string; bg: string }> = {
+  poll:      { label: '📊 Votación',        bg: '#cce7ff' },
+  wordcloud: { label: '☁️ Nube de palabras', bg: '#f1e6ff' },
+  quiz:      { label: '🏆 Quiz',             bg: '#d3f6e3' },
+  qa:        { label: '💬 Q&A',              bg: '#fff2be' },
+}
+
 export default function PresentPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const searchParams = useSearchParams()
@@ -26,52 +33,33 @@ export default function PresentPage() {
   const [showQR, setShowQR] = useState(true)
   const socketRef = useRef(getSocket())
 
-  // Load session from Redis via API
   useEffect(() => {
     if (!code) return
-    fetch(`/api/sessions/join?code=${code}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) return
-        // We need full session data — fetch it properly
-      })
+    fetch(`/api/sessions/join?code=${code}`).then(r => r.json()).then(data => { if (data.error) return })
   }, [code])
 
-  // Fetch full session for presenter
   useEffect(() => {
     if (!code) return
     fetch(`/api/sessions/full?code=${code}`)
       .then(r => r.json())
-      .then(data => {
-        if (data.session) setSession(data.session)
-      })
+      .then(data => { if (data.session) setSession(data.session) })
   }, [code])
 
-  // Generate QR code
   useEffect(() => {
     if (!code) return
     const url = `${window.location.origin}/join/${code}`
-    QRCode.toDataURL(url, { width: 280, margin: 2, color: { dark: '#1e293b', light: '#f8fafc' } })
+    QRCode.toDataURL(url, { width: 280, margin: 2, color: { dark: '#0a0d12', light: '#fafdff' } })
       .then(setQrDataUrl)
   }, [code])
 
-  // Socket setup
   useEffect(() => {
     const socket = socketRef.current
     socket.emit('presenter:join', { sessionId })
-
     socket.on('responses:update', ({ slideIndex, responses: r }: { slideIndex: number; responses: StoredResponse[] }) => {
       if (slideIndex === currentSlide) setResponses(r)
     })
-
-    socket.on('audience:count', ({ count }: { count: number }) => {
-      setAudienceCount(count)
-    })
-
-    socket.on('responses:lock', ({ locked: l }: { locked: boolean }) => {
-      setLocked(l)
-    })
-
+    socket.on('audience:count', ({ count }: { count: number }) => setAudienceCount(count))
+    socket.on('responses:lock', ({ locked: l }: { locked: boolean }) => setLocked(l))
     return () => {
       socket.off('responses:update')
       socket.off('audience:count')
@@ -96,39 +84,48 @@ export default function PresentPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-400 text-lg">Cargando sesión...</div>
+      <div className="min-h-screen bg-[#ebf5ff] flex items-center justify-center">
+        <div className="text-[#535862] text-[16px] font-medium">Cargando sesión...</div>
       </div>
     )
   }
 
   const slide = session.slides[currentSlide]
+  const badge = SLIDE_BADGE[slide.type]
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
+    <div className="min-h-screen bg-[#ebf5ff] flex flex-col">
+
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900">
-        <div>
-          <h1 className="text-lg font-bold text-white">{session.title}</h1>
-          <p className="text-slate-400 text-sm">
-            Slide {currentSlide + 1} / {session.slides.length}
-          </p>
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[#535862] bg-[#fafdff]">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded-[6px] bg-[#181d27] flex items-center justify-center">
+            <span className="text-white text-[10px] font-semibold">P</span>
+          </div>
+          <div>
+            <h1 className="text-[16px] font-medium text-[#0a0d12] tracking-[-0.01em] leading-none">{session.title}</h1>
+            <p className="text-[12px] text-[#93979f] font-medium mt-0.5">
+              Slide {currentSlide + 1} / {session.slides.length}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-sm">{audienceCount} en vivo</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9999px] bg-[#d3f6e3] border border-[#535862]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+            <span className="text-[13px] font-medium text-[#0a0d12]">{audienceCount} en vivo</span>
           </div>
           <button
             onClick={() => setShowQR(v => !v)}
-            className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors"
+            className="px-4 py-1.5 rounded-[9999px] border border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12] text-[13px] font-medium transition-all duration-200"
           >
             {showQR ? 'Ocultar QR' : 'Mostrar QR'}
           </button>
           <button
             onClick={toggleLock}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              locked ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+            className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${
+              locked
+                ? 'bg-[#ffe4d4] border-[#f26110] text-[#0a0d12]'
+                : 'bg-[#d3f6e3] border-[#535862] text-[#0a0d12]'
             }`}
           >
             {locked ? '🔒 Cerrado' : '🔓 Abierto'}
@@ -139,24 +136,30 @@ export default function PresentPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Main area */}
         <div className="flex-1 flex flex-col p-8 overflow-y-auto">
+
           {/* Question */}
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-sm mb-3">
-              {slide.type === 'poll' && '📊 Votación'}
-              {slide.type === 'wordcloud' && '☁️ Nube de palabras'}
-              {slide.type === 'quiz' && '🏆 Quiz'}
-              {slide.type === 'qa' && '💬 Q&A'}
-            </div>
-            <h2 className="text-4xl font-bold text-white leading-tight">{slide.question}</h2>
+          <div className="mb-6">
+            <span
+              className="inline-flex items-center px-3 py-1 rounded-[9999px] text-[13px] font-medium text-[#0a0d12] mb-3"
+              style={{ backgroundColor: badge.bg }}
+            >
+              {badge.label}
+            </span>
+            <h2 className="text-[32px] font-medium leading-[1.2] tracking-[-0.64px] text-[#0a0d12]">
+              {slide.question}
+            </h2>
           </div>
 
-          {/* Results visualization */}
-          <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 p-6">
+          {/* Results */}
+          <div className="flex-1 bg-[#fafdff] rounded-[32px] border border-[#535862] p-6 shadow-[rgba(4,69,144,0.08)_0px_14px_20px_4px]">
             {responses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
-                <span className="text-5xl">⏳</span>
-                <p className="text-lg">Esperando respuestas...</p>
-                <p className="text-sm">La audiencia debe ir a <span className="text-indigo-400 font-mono">{joinUrl}</span></p>
+              <div className="flex flex-col items-center justify-center h-full gap-3">
+                <div className="w-14 h-14 rounded-[16px] bg-[#cce7ff] flex items-center justify-center text-2xl">⏳</div>
+                <p className="text-[#0a0d12] text-[16px] font-medium">Esperando respuestas...</p>
+                <p className="text-[#535862] text-[13px]">
+                  La audiencia debe ir a{' '}
+                  <span className="text-[#0099ff] font-medium">{joinUrl}</span>
+                </p>
               </div>
             ) : (
               <>
@@ -169,9 +172,9 @@ export default function PresentPage() {
                 {slide.type === 'qa' && (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {responses.map((r, i) => (
-                      <div key={i} className="bg-slate-800 rounded-xl px-4 py-3">
-                        <p className="text-white">{r.answer}</p>
-                        <p className="text-slate-500 text-xs mt-1">{r.name}</p>
+                      <div key={i} className="bg-[#ebf5ff] rounded-[16px] px-4 py-3 border border-[#535862]">
+                        <p className="text-[#0a0d12] text-[15px] font-medium">{r.answer}</p>
+                        <p className="text-[#93979f] text-[12px] mt-1">{r.name}</p>
                       </div>
                     ))}
                   </div>
@@ -181,11 +184,11 @@ export default function PresentPage() {
           </div>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center justify-between mt-5">
             <button
               onClick={() => goToSlide(currentSlide - 1)}
               disabled={currentSlide === 0}
-              className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-medium transition-all"
+              className="px-6 py-2.5 rounded-[9999px] border border-[#535862] bg-[#fafdff] hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] disabled:opacity-30 text-[#0a0d12] text-[14px] font-medium transition-all duration-200"
             >
               ← Anterior
             </button>
@@ -194,16 +197,15 @@ export default function PresentPage() {
                 <button
                   key={i}
                   onClick={() => goToSlide(i)}
-                  className={`w-3 h-3 rounded-full transition-colors ${
-                    i === currentSlide ? 'bg-indigo-500' : 'bg-slate-700 hover:bg-slate-600'
-                  }`}
+                  className="w-2.5 h-2.5 rounded-full transition-all duration-200"
+                  style={{ backgroundColor: i === currentSlide ? '#181d27' : '#93979f' }}
                 />
               ))}
             </div>
             <button
               onClick={() => goToSlide(currentSlide + 1)}
               disabled={currentSlide === session.slides.length - 1}
-              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 text-white font-medium transition-all"
+              className="px-6 py-2.5 rounded-[9999px] bg-[#181d27] hover:opacity-90 disabled:opacity-30 text-white text-[14px] font-medium transition-all duration-200"
             >
               Siguiente →
             </button>
@@ -212,17 +214,21 @@ export default function PresentPage() {
 
         {/* QR sidebar */}
         {showQR && (
-          <div className="w-72 border-l border-slate-800 bg-slate-900 flex flex-col items-center justify-center p-6 gap-4">
-            <p className="text-slate-400 text-sm font-medium text-center">Escanea para participar</p>
+          <div className="w-68 border-l border-[#535862] bg-[#fafdff] flex flex-col items-center justify-center p-6 gap-4">
+            <p className="text-[#535862] text-[13px] font-medium text-center">Escanea para participar</p>
             {qrDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrDataUrl} alt="QR Code" className="rounded-xl w-48 h-48 object-contain" />
+              <img
+                src={qrDataUrl}
+                alt="QR Code"
+                className="rounded-[16px] w-44 h-44 object-contain border border-[#535862]"
+              />
             )}
-            <div className="bg-slate-800 rounded-xl px-4 py-3 text-center w-full">
-              <p className="text-slate-400 text-xs mb-1">Código</p>
-              <p className="text-3xl font-bold font-mono tracking-widest text-white">{code}</p>
+            <div className="bg-[#ebf5ff] rounded-[16px] px-4 py-3 text-center w-full border border-[#535862]">
+              <p className="text-[#93979f] text-[11px] font-medium mb-1 uppercase tracking-widest">Código</p>
+              <p className="text-[28px] font-semibold font-mono tracking-[0.1em] text-[#0a0d12]">{code}</p>
             </div>
-            <p className="text-slate-500 text-xs text-center break-all">{joinUrl}</p>
+            <p className="text-[#93979f] text-[11px] text-center break-all">{joinUrl}</p>
           </div>
         )}
       </div>

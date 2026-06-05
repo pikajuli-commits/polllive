@@ -20,9 +20,9 @@ export default function WordCloudSlide({ locked, onAnswer }: Props) {
   if (submitted) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-12">
-        <div className="text-5xl">✅</div>
-        <p className="text-white text-xl font-medium">¡Enviado!</p>
-        <p className="text-slate-400">Tu palabra aparece en la nube</p>
+        <div className="w-14 h-14 rounded-[16px] bg-[#cce7ff] flex items-center justify-center text-2xl">☁️</div>
+        <p className="text-[#0a0d12] text-[20px] font-medium tracking-[-0.02em]">¡Enviado!</p>
+        <p className="text-[#535862] text-[14px]">Tu palabra aparece en la nube</p>
       </div>
     )
   }
@@ -30,7 +30,7 @@ export default function WordCloudSlide({ locked, onAnswer }: Props) {
   return (
     <div className="flex flex-col gap-4">
       {locked && (
-        <div className="bg-amber-500/20 border border-amber-500/40 rounded-lg px-4 py-2 text-amber-300 text-sm text-center">
+        <div className="bg-[#fff2be] border border-[#bb9915] rounded-[8px] px-4 py-2 text-[#535862] text-[14px] text-center font-medium">
           Las respuestas están cerradas
         </div>
       )}
@@ -40,12 +40,12 @@ export default function WordCloudSlide({ locked, onAnswer }: Props) {
         disabled={locked}
         placeholder="Escribe una palabra o frase corta..."
         rows={3}
-        className="w-full px-4 py-3 rounded-xl bg-slate-800 border-2 border-slate-600 focus:border-indigo-500 text-white text-lg resize-none outline-none transition-colors"
+        className="w-full px-4 py-3 rounded-[16px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[16px] font-medium placeholder:text-[#93979f] resize-none transition-all duration-200"
       />
       <button
         onClick={handleSubmit}
         disabled={!text.trim() || locked}
-        className="w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-lg font-semibold transition-all"
+        className="w-full py-3 rounded-[9999px] bg-[#181d27] hover:opacity-90 disabled:bg-[#f6f7f8] disabled:text-[#93979f] text-white text-[16px] font-medium tracking-[-0.01em] transition-all duration-200"
       >
         Enviar
       </button>

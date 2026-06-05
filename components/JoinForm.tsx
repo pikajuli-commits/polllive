@@ -17,13 +17,13 @@ export default function JoinForm() {
       <input
         value={code}
         onChange={e => setCode(e.target.value.toUpperCase())}
-        placeholder="Código (ej: ABC123)"
+        placeholder="Código ABC123"
         maxLength={6}
-        className="px-4 py-4 rounded-xl bg-slate-800 border-2 border-slate-700 focus:border-indigo-500 text-white text-lg outline-none transition-colors uppercase w-44"
+        className="px-4 py-3 rounded-[9999px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[16px] font-medium tracking-[-0.01em] transition-all duration-200 uppercase w-40 placeholder:text-[#93979f]"
       />
       <button
         type="submit"
-        className="px-5 py-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold transition-all"
+        className="px-6 py-3 rounded-[9999px] border border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12] font-medium text-[16px] tracking-[-0.01em] transition-all duration-200"
       >
         Unirse
       </button>
