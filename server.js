@@ -188,6 +188,42 @@ app.prepare().then(() => {
       }
     })
 
+    // Presenter (or co-presenter) clears all responses for the current slide
+    // so participants can answer again with a clean slate.
+    socket.on('presenter:clear', async ({ sessionId, code, slideIndex }) => {
+      try {
+        const sessionCode = code || sessionCodeMap.get(sessionId)
+        if (!sessionCode) return
+
+        const redis = createClient()
+        const responseKey = `responses:${sessionId}:${slideIndex}`
+        await redis.del(responseKey)
+
+        const raw = await redis.get(`session:${sessionCode}`)
+        await redis.quit()
+        if (!raw) return
+
+        const session = JSON.parse(raw)
+
+        // 1. Clear responses display on presenter / viewer
+        io.to(`session:${sessionId}`).emit('responses:update', {
+          slideIndex,
+          responses: []
+        })
+
+        // 2. Re-emit slide:current so audience components remount and can re-submit
+        io.to(`session:${sessionId}`).emit('slide:current', {
+          slide: session.slides[slideIndex],
+          slideIndex,
+          locked: session.locked
+        })
+
+        console.log(`Responses cleared for session ${sessionId} slide ${slideIndex}`)
+      } catch (err) {
+        console.error('presenter:clear error', err)
+      }
+    })
+
     // Collaborator/viewer joins — read-only observer
     // Joins the session room, receives slide:current and responses:update automatically.
     // Does NOT count toward audienceCount.

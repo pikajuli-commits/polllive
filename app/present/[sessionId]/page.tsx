@@ -32,6 +32,7 @@ export default function PresentPage() {
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [showQR, setShowQR] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const socketRef = useRef(getSocket())
 
   useEffect(() => {
@@ -83,6 +84,17 @@ export default function PresentPage() {
     // Pass code for same reason as above
     socketRef.current.emit('presenter:lock', { sessionId, code, locked: next })
   }, [locked, sessionId, code])
+
+  const handleClear = useCallback(() => {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      setTimeout(() => setConfirmClear(false), 3000)
+      return
+    }
+    setConfirmClear(false)
+    setResponses([])
+    socketRef.current.emit('presenter:clear', { sessionId, code, slideIndex: currentSlide })
+  }, [confirmClear, sessionId, code, currentSlide])
 
   const handleCopyViewerLink = useCallback(() => {
     const url = `${window.location.origin}/view/${sessionId}?code=${code}`
@@ -146,6 +158,16 @@ export default function PresentPage() {
             className="px-4 py-1.5 rounded-[9999px] border border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12] text-[13px] font-medium transition-all duration-200"
           >
             {showQR ? 'Ocultar QR' : 'Mostrar QR'}
+          </button>
+          <button
+            onClick={handleClear}
+            className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${
+              confirmClear
+                ? 'bg-[#ffe4d4] border-[#f26110] text-[#f26110] animate-pulse'
+                : 'border-[#535862] bg-transparent hover:bg-[#f26110] hover:text-white hover:border-[#f26110] text-[#0a0d12]'
+            }`}
+          >
+            {confirmClear ? '¿Confirmar borrado?' : '🗑️ Borrar datos'}
           </button>
           <button
             onClick={toggleLock}

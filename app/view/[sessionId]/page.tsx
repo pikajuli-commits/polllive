@@ -28,6 +28,7 @@ export default function ViewPage() {
   const [slideIndex, setSlideIndex] = useState(0)
   const [responses, setResponses] = useState<StoredResponse[]>([])
   const [locked, setLocked] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const [error, setError] = useState('')
   const socketRef = useRef(getSocket())
 
@@ -83,6 +84,17 @@ export default function ViewPage() {
     setLocked(false)
     socketRef.current.emit('presenter:slide', { sessionId, code, slideIndex: idx })
   }, [sessionId, code])
+
+  const handleClear = useCallback(() => {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      setTimeout(() => setConfirmClear(false), 3000)
+      return
+    }
+    setConfirmClear(false)
+    setResponses([])
+    socketRef.current.emit('presenter:clear', { sessionId, code, slideIndex })
+  }, [confirmClear, sessionId, code, slideIndex])
 
   const toggleLock = useCallback(() => {
     const next = !locked
@@ -147,6 +159,16 @@ export default function ViewPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleClear}
+            className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${
+              confirmClear
+                ? 'bg-[#ffe4d4] border-[#f26110] text-[#f26110] animate-pulse'
+                : 'border-[#535862] bg-transparent hover:bg-[#f26110] hover:text-white hover:border-[#f26110] text-[#0a0d12]'
+            }`}
+          >
+            {confirmClear ? '¿Confirmar borrado?' : '🗑️ Borrar datos'}
+          </button>
           <button
             onClick={toggleLock}
             className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${

@@ -22,6 +22,7 @@ export default function JoinPage() {
   const [phase, setPhase] = useState<Phase>('name')
   const [slide, setSlide] = useState<Slide | null>(null)
   const [slideIndex, setSlideIndex] = useState(0)
+  const [slideKey, setSlideKey] = useState(0)
   const [locked, setLocked] = useState(false)
   const [sessionTitle, setSessionTitle] = useState('')
   const [error, setError] = useState('')
@@ -46,7 +47,7 @@ export default function JoinPage() {
     setPhase('waiting')
 
     socket.on('slide:current', ({ slide: s, slideIndex: i, locked: l }: { slide: Slide | null; slideIndex: number; locked: boolean }) => {
-      if (s) { setSlide(s); setSlideIndex(i); setLocked(l); setPhase('slide') }
+      if (s) { setSlide(s); setSlideIndex(i); setLocked(l); setPhase('slide'); setSlideKey(k => k + 1) }
     })
     socket.on('responses:lock', ({ locked: l }: { locked: boolean }) => setLocked(l))
     socket.on('error', ({ message }: { message: string }) => { setError(message); setPhase('name') })
@@ -155,16 +156,16 @@ export default function JoinPage() {
           {/* Slide component — key fuerza remount al cambiar slide */}
           <div className="bg-[#fafdff] rounded-[32px] border border-[#535862] p-5 shadow-[rgba(4,69,144,0.08)_0px_14px_20px_4px]">
             {slide.type === 'poll' && (
-              <PollSlide key={slideIndex} slide={slide} locked={locked} onAnswer={handleAnswer} />
+              <PollSlide key={slideKey} slide={slide} locked={locked} onAnswer={handleAnswer} />
             )}
             {slide.type === 'wordcloud' && (
-              <WordCloudSlide key={slideIndex} locked={locked} onAnswer={handleAnswer} />
+              <WordCloudSlide key={slideKey} locked={locked} onAnswer={handleAnswer} />
             )}
             {slide.type === 'quiz' && (
-              <QuizSlide key={slideIndex} slide={slide} locked={locked} onAnswer={handleAnswer} />
+              <QuizSlide key={slideKey} slide={slide} locked={locked} onAnswer={handleAnswer} />
             )}
             {slide.type === 'qa' && (
-              <QASlide key={slideIndex} locked={locked} onAnswer={handleAnswer} />
+              <QASlide key={slideKey} locked={locked} onAnswer={handleAnswer} />
             )}
           </div>
 
