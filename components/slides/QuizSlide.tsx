@@ -5,7 +5,7 @@ import { Slide } from '@/lib/redis'
 interface Props {
   slide: Slide
   locked: boolean
-  onAnswer: (optionId: string) => void
+  onAnswer: (optionId: string, name?: string) => void
 }
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']

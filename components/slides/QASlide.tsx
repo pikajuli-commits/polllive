@@ -3,17 +3,18 @@ import { useState } from 'react'
 
 interface Props {
   locked: boolean
-  onAnswer: (text: string) => void
+  onAnswer: (text: string, name?: string) => void
 }
 
 export default function QASlide({ locked, onAnswer }: Props) {
   const [text, setText] = useState('')
+  const [authorName, setAuthorName] = useState('')
   const [submitted, setSubmitted] = useState(false)
 
   const handleSubmit = () => {
     const trimmed = text.trim()
     if (!trimmed || submitted || locked) return
-    onAnswer(trimmed)
+    onAnswer(trimmed, authorName.trim() || 'Anónimo')
     setSubmitted(true)
   }
 
@@ -34,6 +35,13 @@ export default function QASlide({ locked, onAnswer }: Props) {
           Las preguntas están cerradas
         </div>
       )}
+      <input
+        value={authorName}
+        onChange={e => setAuthorName(e.target.value)}
+        disabled={locked}
+        placeholder="Tu nombre (opcional)"
+        className="w-full px-4 py-2.5 rounded-[12px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[14px] font-medium placeholder:text-[#93979f] tracking-[-0.01em] transition-all duration-200"
+      />
       <textarea
         value={text}
         onChange={e => setText(e.target.value)}

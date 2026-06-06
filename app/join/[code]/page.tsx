@@ -20,7 +20,6 @@ const SLIDE_BADGE: Record<string, { label: string; bg: string }> = {
 export default function JoinPage() {
   const { code } = useParams<{ code: string }>()
   const [phase, setPhase] = useState<Phase>('name')
-  const [name, setName] = useState('')
   const [slide, setSlide] = useState<Slide | null>(null)
   const [slideIndex, setSlideIndex] = useState(0)
   const [locked, setLocked] = useState(false)
@@ -43,7 +42,7 @@ export default function JoinPage() {
 
   const joinSession = useCallback(() => {
     const socket = socketRef.current
-    socket.emit('audience:join', { code: upperCode, name: name.trim() || 'Anónimo' })
+    socket.emit('audience:join', { code: upperCode, name: 'Anónimo' })
     setPhase('waiting')
 
     socket.on('slide:current', ({ slide: s, slideIndex: i, locked: l }: { slide: Slide | null; slideIndex: number; locked: boolean }) => {
@@ -51,7 +50,7 @@ export default function JoinPage() {
     })
     socket.on('responses:lock', ({ locked: l }: { locked: boolean }) => setLocked(l))
     socket.on('error', ({ message }: { message: string }) => { setError(message); setPhase('name') })
-  }, [upperCode, name])
+  }, [upperCode])
 
   useEffect(() => {
     const socket = socketRef.current
@@ -63,8 +62,8 @@ export default function JoinPage() {
     }
   }, [])
 
-  const handleAnswer = useCallback((answer: string) => {
-    socketRef.current.emit('audience:answer', { code: upperCode, slideIndex, answer })
+  const handleAnswer = useCallback((answer: string, name?: string) => {
+    socketRef.current.emit('audience:answer', { code: upperCode, slideIndex, answer, name })
   }, [upperCode, slideIndex])
 
   // ── Name entry ──
@@ -90,14 +89,6 @@ export default function JoinPage() {
                 {upperCode}
               </span>
             </div>
-            <input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && joinSession()}
-              placeholder="Tu nombre (opcional)"
-              className="w-full px-4 py-3 rounded-[16px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[16px] font-medium placeholder:text-[#93979f] tracking-[-0.01em] transition-all duration-200 mb-4"
-              autoFocus
-            />
             <button
               onClick={joinSession}
               disabled={!!error}

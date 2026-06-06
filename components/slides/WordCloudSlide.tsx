@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 interface Props {
   locked: boolean
-  onAnswer: (text: string) => void
+  onAnswer: (text: string, name?: string) => void
 }
 
 export default function WordCloudSlide({ locked, onAnswer }: Props) {

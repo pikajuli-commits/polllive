@@ -54,10 +54,8 @@ export default function LiveWordCloud({ responses }: Props) {
     // ── 1. Contar frecuencias ──────────────────────────────────────────────
     const freq: Record<string, number> = {}
     responses.forEach(r => {
-      r.answer.trim().toLowerCase()
-        .split(/\s+/)
-        .filter(w => w.length > 1)
-        .forEach(w => { freq[w] = (freq[w] || 0) + 1 })
+      const phrase = r.answer.trim().toLowerCase()
+      if (phrase.length > 1) { freq[phrase] = (freq[phrase] || 0) + 1 }
     })
 
     const sorted = Object.entries(freq)

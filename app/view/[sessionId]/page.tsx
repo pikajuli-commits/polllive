@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { getSocket, disconnectSocket } from '@/lib/socket'
 import { Slide, StoredResponse } from '@/lib/redis'
@@ -27,10 +27,11 @@ export default function ViewPage() {
   const [slide, setSlide] = useState<Slide | null>(null)
   const [slideIndex, setSlideIndex] = useState(0)
   const [responses, setResponses] = useState<StoredResponse[]>([])
+  const [locked, setLocked] = useState(false)
   const [error, setError] = useState('')
   const socketRef = useRef(getSocket())
 
-  // Load session metadata for the title
+  // Load full session data for navigation dot count
   useEffect(() => {
     if (!code) return
     fetch(`/api/sessions/full?code=${code}`)
@@ -42,18 +43,19 @@ export default function ViewPage() {
       .catch(() => setError('No se pudo conectar al servidor'))
   }, [code])
 
-  // Connect socket as viewer
+  // Connect socket as co-presenter
   useEffect(() => {
     if (!code || !sessionId) return
     const socket = socketRef.current
 
     socket.emit('view:join', { sessionId, code })
 
-    socket.on('slide:current', ({ slide: s, slideIndex: i }: { slide: Slide | null; slideIndex: number }) => {
+    socket.on('slide:current', ({ slide: s, slideIndex: i, locked: l }: { slide: Slide | null; slideIndex: number; locked: boolean }) => {
       if (s) {
         setSlide(s)
         setSlideIndex(i)
-        setResponses([]) // clear for new slide; responses:update will repopulate if any
+        setLocked(l ?? false)
+        setResponses([])
       }
     })
 
@@ -61,16 +63,32 @@ export default function ViewPage() {
       setResponses(r)
     })
 
+    socket.on('responses:lock', ({ locked: l }: { locked: boolean }) => setLocked(l))
+
     socket.on('error', ({ message }: { message: string }) => setError(message))
 
     return () => {
       const s = socketRef.current
       s.off('slide:current')
       s.off('responses:update')
+      s.off('responses:lock')
       s.off('error')
       disconnectSocket()
     }
   }, [code, sessionId])
+
+  const goToSlide = useCallback((idx: number) => {
+    setSlideIndex(idx)
+    setResponses([])
+    setLocked(false)
+    socketRef.current.emit('presenter:slide', { sessionId, code, slideIndex: idx })
+  }, [sessionId, code])
+
+  const toggleLock = useCallback(() => {
+    const next = !locked
+    setLocked(next)
+    socketRef.current.emit('presenter:lock', { sessionId, code, locked: next })
+  }, [locked, sessionId, code])
 
   // ── Error state ──
   if (error) {
@@ -107,15 +125,13 @@ export default function ViewPage() {
   }
 
   const badge = SLIDE_BADGE[slide.type]
-
-  // Background darkening — same mechanic as presenter view
   const _d = Math.min(responses.length / 35, 1) * 0.06
   const cardBg = `rgb(${Math.round(250*(1-_d)+10*_d)},${Math.round(253*(1-_d)+13*_d)},${Math.round(255*(1-_d)+18*_d)})`
 
   return (
     <div className="min-h-screen bg-[#ebf5ff] flex flex-col">
 
-      {/* Top bar — read-only, no controls */}
+      {/* Top bar — co-presenter controls */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-[#535862] bg-[#fafdff]">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 rounded-[6px] bg-[#181d27] flex items-center justify-center">
@@ -126,13 +142,25 @@ export default function ViewPage() {
               {session?.title ?? '—'}
             </h1>
             <p className="text-[12px] text-[#93979f] font-medium mt-0.5">
-              Vista de colaborador · Slide {slideIndex + 1}
+              Slide {slideIndex + 1} / {session?.slides.length ?? '—'}
             </p>
           </div>
         </div>
-        <span className="px-3 py-1 rounded-[9999px] bg-[#f1e6ff] border border-[#535862] text-[#0a0d12] text-[12px] font-medium">
-          👁 Solo lectura
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleLock}
+            className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${
+              locked
+                ? 'bg-[#ffe4d4] border-[#f26110] text-[#0a0d12]'
+                : 'bg-[#d3f6e3] border-[#535862] text-[#0a0d12]'
+            }`}
+          >
+            {locked ? '🔒 Cerrado' : '🔓 Abierto'}
+          </button>
+          <span className="px-3 py-1 rounded-[9999px] bg-[#f1e6ff] border border-[#535862] text-[#0a0d12] text-[12px] font-medium">
+            🤝 Co-presentador
+          </span>
+        </div>
       </div>
 
       {/* Main content */}
@@ -180,6 +208,33 @@ export default function ViewPage() {
           )}
         </div>
 
+        {/* Navigation — identical behavior to present page */}
+        <div className="flex items-center justify-between mt-5">
+          <button
+            onClick={() => goToSlide(slideIndex - 1)}
+            disabled={slideIndex === 0}
+            className="px-6 py-2.5 rounded-[9999px] border border-[#535862] bg-[#fafdff] hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] disabled:opacity-30 text-[#0a0d12] text-[14px] font-medium transition-all duration-200"
+          >
+            ← Anterior
+          </button>
+          <div className="flex gap-2">
+            {session?.slides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goToSlide(i)}
+                className="w-2.5 h-2.5 rounded-full transition-all duration-200"
+                style={{ backgroundColor: i === slideIndex ? '#181d27' : '#93979f' }}
+              />
+            ))}
+          </div>
+          <button
+            onClick={() => goToSlide(slideIndex + 1)}
+            disabled={!session || slideIndex === session.slides.length - 1}
+            className="px-6 py-2.5 rounded-[9999px] bg-[#181d27] hover:opacity-90 disabled:opacity-30 text-white text-[14px] font-medium transition-all duration-200"
+          >
+            Siguiente →
+          </button>
+        </div>
       </div>
     </div>
   )

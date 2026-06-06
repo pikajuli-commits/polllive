@@ -139,7 +139,7 @@ export default function PresentPage() {
                 : 'border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12]'
             }`}
           >
-            {copied ? '✓ Copiado' : '🔗 Compartir vista'}
+            {copied ? '✓ Copiado' : '🤝 Compartir control'}
           </button>
           <button
             onClick={() => setShowQR(v => !v)}

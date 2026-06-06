@@ -151,7 +151,7 @@ app.prepare().then(() => {
     })
 
     // Audience submits an answer
-    socket.on('audience:answer', async ({ code, slideIndex, answer }) => {
+    socket.on('audience:answer', async ({ code, slideIndex, answer, name }) => {
       try {
         const redis = createClient()
         const raw = await redis.get(`session:${code}`)
@@ -168,7 +168,7 @@ app.prepare().then(() => {
         const responseKey = `responses:${session.id}:${slideIndex}`
         await redis.rpush(responseKey, JSON.stringify({
           answer,
-          name: socket.data.name || 'Anónimo',
+          name: name || socket.data.name || 'Anónimo',
           socketId: socket.id,
           ts: Date.now()
         }))
