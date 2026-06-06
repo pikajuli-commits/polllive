@@ -188,37 +188,38 @@ app.prepare().then(() => {
       }
     })
 
-    // Presenter (or co-presenter) clears all responses for the current slide
-    // so participants can answer again with a clean slate.
+    // Presenter (or co-presenter) clears ALL responses for the session
+    // so participants can answer again with a clean slate on every slide.
     socket.on('presenter:clear', async ({ sessionId, code, slideIndex }) => {
       try {
         const sessionCode = code || sessionCodeMap.get(sessionId)
         if (!sessionCode) return
 
         const redis = createClient()
-        const responseKey = `responses:${sessionId}:${slideIndex}`
-        await redis.del(responseKey)
-
         const raw = await redis.get(`session:${sessionCode}`)
-        await redis.quit()
-        if (!raw) return
-
+        if (!raw) { await redis.quit(); return }
         const session = JSON.parse(raw)
 
-        // 1. Clear responses display on presenter / viewer
+        // Delete response keys for ALL slides in the session
+        for (let i = 0; i < session.slides.length; i++) {
+          await redis.del(`responses:${sessionId}:${i}`)
+        }
+        await redis.quit()
+
+        // Clear the current slide's display for presenter / viewer
         io.to(`session:${sessionId}`).emit('responses:update', {
           slideIndex,
           responses: []
         })
 
-        // 2. Re-emit slide:current so audience components remount and can re-submit
+        // Re-emit slide:current so audience components remount and can re-submit
         io.to(`session:${sessionId}`).emit('slide:current', {
           slide: session.slides[slideIndex],
           slideIndex,
           locked: session.locked
         })
 
-        console.log(`Responses cleared for session ${sessionId} slide ${slideIndex}`)
+        console.log(`All responses cleared for session ${sessionId} (${session.slides.length} slides)`)
       } catch (err) {
         console.error('presenter:clear error', err)
       }

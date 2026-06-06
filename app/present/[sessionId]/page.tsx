@@ -33,6 +33,7 @@ export default function PresentPage() {
   const [showQR, setShowQR] = useState(true)
   const [copied, setCopied] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  const [duplicated, setDuplicated] = useState(false)
   const socketRef = useRef(getSocket())
 
   useEffect(() => {
@@ -96,6 +97,23 @@ export default function PresentPage() {
     socketRef.current.emit('presenter:clear', { sessionId, code, slideIndex: currentSlide })
   }, [confirmClear, sessionId, code, currentSlide])
 
+  const handleDuplicate = useCallback(async () => {
+    if (!session) return
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: `Copia de ${session.title}`, slides: session.slides }),
+      })
+      const data = await res.json()
+      if (!res.ok) return
+      const url = `${window.location.origin}/present/${data.session.id}?code=${data.session.code}`
+      await navigator.clipboard.writeText(url)
+      setDuplicated(true)
+      setTimeout(() => setDuplicated(false), 3000)
+    } catch { /* ignore */ }
+  }, [session])
+
   const handleCopyViewerLink = useCallback(() => {
     const url = `${window.location.origin}/view/${sessionId}?code=${code}`
     navigator.clipboard.writeText(url).then(() => {
@@ -144,6 +162,22 @@ export default function PresentPage() {
             <span className="text-[13px] font-medium text-[#0a0d12]">{audienceCount} en vivo</span>
           </div>
           <button
+            onClick={handleDuplicate}
+            className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${
+              duplicated
+                ? 'bg-[#d3f6e3] border-[#10b981] text-[#0a0d12]'
+                : 'border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12]'
+            }`}
+          >
+            {duplicated ? '✓ Enlace copiado' : '📋 Duplicar'}
+          </button>
+          <a
+            href={`/edit/${code}`}
+            className="px-4 py-1.5 rounded-[9999px] border border-[#535862] bg-transparent hover:bg-[#0a0d12] hover:text-white hover:border-[#0a0d12] text-[#0a0d12] text-[13px] font-medium transition-all duration-200"
+          >
+            ✏️ Editar
+          </a>
+          <button
             onClick={handleCopyViewerLink}
             className={`px-4 py-1.5 rounded-[9999px] border text-[13px] font-medium transition-all duration-200 ${
               copied
@@ -167,7 +201,7 @@ export default function PresentPage() {
                 : 'border-[#535862] bg-transparent hover:bg-[#f26110] hover:text-white hover:border-[#f26110] text-[#0a0d12]'
             }`}
           >
-            {confirmClear ? '¿Confirmar borrado?' : '🗑️ Borrar datos'}
+            {confirmClear ? '¿Confirmar borrado?' : '🗑️ Borrar todo'}
           </button>
           <button
             onClick={toggleLock}
