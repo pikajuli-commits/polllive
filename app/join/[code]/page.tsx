@@ -23,6 +23,7 @@ export default function JoinPage() {
   const [slides, setSlides] = useState<Slide[]>([])
   const [locked, setLocked] = useState(false)
   const [sessionTitle, setSessionTitle] = useState('')
+  const [authorName, setAuthorName] = useState('')
   const [error, setError] = useState('')
   const [resetKey, setResetKey] = useState(0)
   const socketRef = useRef(getSocket())
@@ -90,6 +91,12 @@ export default function JoinPage() {
                 {upperCode}
               </span>
             </div>
+            <input
+              value={authorName}
+              onChange={e => setAuthorName(e.target.value)}
+              placeholder="Tu nombre (opcional)"
+              className="w-full mb-3 px-4 py-3 rounded-[12px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[15px] font-medium placeholder:text-[#93979f] tracking-[-0.01em] transition-all duration-200"
+            />
             <button
               onClick={joinSession}
               disabled={!!error || slides.length === 0}
@@ -97,6 +104,9 @@ export default function JoinPage() {
             >
               {slides.length === 0 && !error ? 'Cargando...' : 'Entrar →'}
             </button>
+            <p className="text-center text-[#93979f] text-[12px] mt-3">
+              Tu nombre solo se muestra en las preguntas abiertas
+            </p>
           </div>
         </div>
       </div>
@@ -163,7 +173,7 @@ export default function JoinPage() {
                 <QuizSlide key={`${slide.id}-${resetKey}`} slide={slide} locked={locked} onAnswer={(ans) => handleAnswer(idx, ans)} />
               )}
               {slide.type === 'qa' && (
-                <QASlide key={`${slide.id}-${resetKey}`} locked={locked} onAnswer={(ans, name) => handleAnswer(idx, ans, name)} />
+                <QASlide key={`${slide.id}-${resetKey}`} locked={locked} onAnswer={(ans) => handleAnswer(idx, ans, authorName.trim() || 'Anónimo')} />
               )}
             </div>
           )

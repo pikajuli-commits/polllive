@@ -49,6 +49,17 @@ export default function EditPage() {
   const removeSlide = (idx: number) => setSlides(prev => prev.filter((_, i) => i !== idx))
   const updateSlide = (idx: number, patch: Partial<Slide>) =>
     setSlides(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s))
+  const changeType = (idx: number, type: SlideType) =>
+    setSlides(prev => prev.map((s, i) => {
+      if (i !== idx) return s
+      const next: Slide = { ...s, type }
+      if (type === 'poll' || type === 'quiz') {
+        if (!next.options || next.options.length < 2) next.options = [newOption(), newOption()]
+      } else {
+        delete next.options
+      }
+      return next
+    }))
   const addOption = (slideIdx: number) =>
     setSlides(prev => prev.map((s, i) => i !== slideIdx ? s : { ...s, options: [...(s.options || []), newOption()] }))
   const updateOption = (slideIdx: number, optIdx: number, text: string) =>
@@ -150,6 +161,15 @@ export default function EditPage() {
                     <span className="px-3 py-1 rounded-[9999px] text-[12px] font-medium text-[#0a0d12]" style={{ backgroundColor: meta.bg }}>
                       {meta.icon} {meta.label}
                     </span>
+                    <select
+                      value={slide.type}
+                      onChange={e => changeType(idx, e.target.value as SlideType)}
+                      className="px-2 py-1 rounded-[9999px] border border-[#535862] bg-[#ffffff] text-[#0a0d12] text-[12px] font-medium focus:border-[#0099ff] focus:outline-none cursor-pointer"
+                    >
+                      {SLIDE_TYPES.map(t => (
+                        <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+                      ))}
+                    </select>
                     <span className="text-[#93979f] text-[12px] font-medium">Slide {idx + 1}</span>
                   </div>
                   {slides.length > 1 && (
