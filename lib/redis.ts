@@ -4,7 +4,7 @@ import IORedis from 'ioredis'
 
 // ---- Tipos compartidos ----
 
-export type SlideType = 'poll' | 'wordcloud' | 'quiz' | 'qa'
+export type SlideType = 'poll' | 'wordcloud' | 'quiz' | 'qa' | 'section'
 
 export interface SlideOption {
   id: string

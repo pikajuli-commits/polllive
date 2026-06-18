@@ -17,6 +17,7 @@ const SLIDE_BADGE: Record<string, { label: string; bg: string }> = {
   wordcloud: { label: '☁️ Nube de palabras', bg: '#f1e6ff' },
   quiz:      { label: '🏆 Quiz',             bg: '#d3f6e3' },
   qa:        { label: '💬 Q&A',              bg: '#fff2be' },
+  section:   { label: '📌 Sección',          bg: '#e8e9eb' },
 }
 
 export default function ViewPage() {
@@ -241,47 +242,63 @@ export default function ViewPage() {
         {/* Main content */}
         <div className="flex-1 flex flex-col p-8 overflow-y-auto">
 
-          {/* Badge + question */}
-          <div className="mb-6">
-            <span
-              className="inline-flex items-center px-3 py-1 rounded-[9999px] text-[13px] font-medium text-[#0a0d12] mb-3"
-              style={{ backgroundColor: badge.bg }}
-            >
-              {badge.label}
-            </span>
-            <h2 className="text-[32px] font-medium leading-[1.2] tracking-[-0.64px] text-[#0a0d12]">
-              {slide.question}
-            </h2>
-          </div>
-
-          {/* Live results card */}
-          <div className="flex-1 rounded-[32px] border border-[#535862] p-6 shadow-[rgba(4,69,144,0.08)_0px_14px_20px_4px]" style={{ backgroundColor: cardBg, transition: 'background-color 0.6s ease' }}>
-            {responses.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full min-h-[240px] gap-3">
-                <div className="w-14 h-14 rounded-[16px] bg-[#cce7ff] flex items-center justify-center text-2xl">⏳</div>
-                <p className="text-[#0a0d12] text-[16px] font-medium">Esperando respuestas...</p>
+          {/* Section slide: big centered title */}
+          {slide.type === 'section' ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-6 text-center">
+              <div className="w-24 h-24 rounded-[28px] bg-[#181d27] flex items-center justify-center text-5xl">📌</div>
+              <p className="text-[#93979f] text-[14px] font-medium uppercase tracking-widest">Sección</p>
+              <h2 className="text-[48px] font-medium text-[#0a0d12] leading-[1.1] tracking-[-0.03em] max-w-3xl">
+                {slide.question}
+              </h2>
+              <p className="text-[#93979f] text-[14px] max-w-sm">
+                Los participantes responden todas las preguntas desde su dispositivo
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Badge + question */}
+              <div className="mb-6">
+                <span
+                  className="inline-flex items-center px-3 py-1 rounded-[9999px] text-[13px] font-medium text-[#0a0d12] mb-3"
+                  style={{ backgroundColor: badge.bg }}
+                >
+                  {badge.label}
+                </span>
+                <h2 className="text-[32px] font-medium leading-[1.2] tracking-[-0.64px] text-[#0a0d12]">
+                  {slide.question}
+                </h2>
               </div>
-            ) : (
-              <>
-                {(slide.type === 'poll' || slide.type === 'quiz') && (
-                  <LiveBarChart slide={slide} responses={responses} />
-                )}
-                {slide.type === 'wordcloud' && (
-                  <LiveWordCloud responses={responses} />
-                )}
-                {slide.type === 'qa' && (
-                  <div className="space-y-3 max-h-[480px] overflow-y-auto">
-                    {responses.map((r, i) => (
-                      <div key={i} className="bg-[#ebf5ff] rounded-[16px] px-4 py-3 border border-[#535862]">
-                        <p className="text-[#0a0d12] text-[15px] font-medium">{r.answer}</p>
-                        <p className="text-[#93979f] text-[12px] mt-1">{r.name}</p>
-                      </div>
-                    ))}
+
+              {/* Live results card */}
+              <div className="flex-1 rounded-[32px] border border-[#535862] p-6 shadow-[rgba(4,69,144,0.08)_0px_14px_20px_4px]" style={{ backgroundColor: cardBg, transition: 'background-color 0.6s ease' }}>
+                {responses.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full min-h-[240px] gap-3">
+                    <div className="w-14 h-14 rounded-[16px] bg-[#cce7ff] flex items-center justify-center text-2xl">⏳</div>
+                    <p className="text-[#0a0d12] text-[16px] font-medium">Esperando respuestas...</p>
                   </div>
+                ) : (
+                  <>
+                    {(slide.type === 'poll' || slide.type === 'quiz') && (
+                      <LiveBarChart slide={slide} responses={responses} />
+                    )}
+                    {slide.type === 'wordcloud' && (
+                      <LiveWordCloud responses={responses} />
+                    )}
+                    {slide.type === 'qa' && (
+                      <div className="space-y-3 max-h-[480px] overflow-y-auto">
+                        {responses.map((r, i) => (
+                          <div key={i} className="bg-[#ebf5ff] rounded-[16px] px-4 py-3 border border-[#535862]">
+                            <p className="text-[#0a0d12] text-[15px] font-medium">{r.answer}</p>
+                            <p className="text-[#93979f] text-[12px] mt-1">{r.name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          )}
 
           {/* Navigation — identical behavior to present page */}
           <div className="flex items-center justify-between mt-5">

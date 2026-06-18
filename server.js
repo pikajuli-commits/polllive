@@ -212,12 +212,8 @@ app.prepare().then(() => {
           responses: []
         })
 
-        // Re-emit slide:current so audience components remount and can re-submit
-        io.to(`session:${sessionId}`).emit('slide:current', {
-          slide: session.slides[slideIndex],
-          slideIndex,
-          locked: session.locked
-        })
+        // Signal audience to remount all slide components so they can re-submit
+        io.to(`session:${sessionId}`).emit('session:reset', {})
 
         console.log(`All responses cleared for session ${sessionId} (${session.slides.length} slides)`)
       } catch (err) {

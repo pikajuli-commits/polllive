@@ -9,6 +9,7 @@ const SLIDE_TYPES: { value: SlideType; label: string; icon: string; bg: string }
   { value: 'wordcloud', label: 'Nube de palabras',  icon: '☁️', bg: '#f1e6ff' },
   { value: 'quiz',      label: 'Quiz',              icon: '🏆', bg: '#d3f6e3' },
   { value: 'qa',        label: 'Q&A',               icon: '💬', bg: '#fff2be' },
+  { value: 'section',   label: 'Sección',            icon: '📌', bg: '#e8e9eb' },
 ]
 
 function newOption(): SlideOption {
@@ -135,7 +136,7 @@ export default function CreatePage() {
                 <input
                   value={slide.question}
                   onChange={e => updateSlide(idx, { question: e.target.value })}
-                  placeholder="Escribe la pregunta..."
+                  placeholder={slide.type === 'section' ? 'Nombre de la sección...' : 'Escribe la pregunta...'}
                   className="w-full px-4 py-3 rounded-[16px] bg-[#ffffff] border border-[#535862] focus:border-[#0099ff] focus:outline-none text-[#0a0d12] text-[16px] font-medium placeholder:text-[#93979f] tracking-[-0.01em] transition-all duration-200 mb-4"
                 />
 
